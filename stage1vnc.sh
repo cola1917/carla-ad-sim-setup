@@ -1,0 +1,124 @@
+#!/bin/bash
+set -e
+
+############################################
+# Stage 1 Desktop Base
+# Ubuntu 24.04
+############################################
+
+VNC_PASSWORD="12345678"
+
+echo "========== Stage 1 Desktop =========="
+
+############################################
+# Update
+############################################
+
+apt update
+
+############################################
+# Desktop Packages
+############################################
+
+apt install -y \
+    xfce4 \
+    xfce4-terminal \
+    thunar \
+    dbus-x11 \
+    x11-xserver-utils \
+    xauth \
+
+############################################
+# TurboVNC
+############################################
+
+cd /tmp
+# ！！！！！！
+dpkg -i ~/blockdata/turbovnc_3.3_amd64.deb || true
+
+apt install -f -y
+
+############################################
+# VNC Password
+############################################
+
+mkdir -p ~/.vnc
+
+echo "${VNC_PASSWORD}" | /opt/TurboVNC/bin/vncpasswd -f > ~/.vnc/passwd
+
+chmod 600 ~/.vnc/passwd
+
+############################################
+# xstartup
+############################################
+
+cat > ~/.vnc/xstartup << 'EOF'
+#!/bin/bash
+
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+
+export XDG_SESSION_TYPE=x11
+
+exec startxfce4
+EOF
+
+chmod +x ~/.vnc/xstartup
+
+############################################
+# Generate start script
+############################################
+
+cat > /root/start_vnc.sh << 'EOF'
+#!/bin/bash
+set -e
+
+DISPLAY_NUM=1
+
+# Already running
+if pgrep -x Xvnc >/dev/null; then
+    echo "TurboVNC is already running."
+    exit 0
+fi
+
+# Clean
+rm -f /tmp/.X${DISPLAY_NUM}-lock
+rm -f ~/.vnc/*.pid
+rm -f ~/.vnc/*.log
+
+# Start
+/opt/TurboVNC/bin/vncserver :${DISPLAY_NUM} \
+    -geometry 1920x1080 \
+    -depth 24 \
+    -rfbport 5901 \
+    -xstartup ~/.vnc/xstartup
+
+echo
+echo "======================================="
+echo "TurboVNC Started Successfully"
+echo "Display :${DISPLAY_NUM}"
+echo "Port    :5901"
+echo "======================================="
+EOF
+
+chmod +x /root/start_vnc.sh
+
+############################################
+# Test
+############################################
+
+/root/start_vnc.sh
+
+echo
+echo "======================================="
+echo "Stage 1 Completed."
+echo
+echo "Windows TurboVNC Viewer:"
+echo
+echo "    <Pod_IP>:5901"
+echo
+echo "Password:"
+echo
+echo "    ${VNC_PASSWORD}"
+echo
+echo "======================================="
