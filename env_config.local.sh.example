@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Copy to env_config.local.sh and customize for your machine.
+# env_config.local.sh is loaded at the end of env_config.sh.
+
+# ENV_HOME="$HOME/sim-env"
+# BLOCKDATA_DIR="$ENV_HOME/data"
+# CONDA_ROOT="$ENV_HOME/miniconda3"
+# ROS2_WS="$ENV_HOME/carla-ros2-ws"
+# CARLA_VERSION="0.9.16"
+# VNC_PASSWORD="your-password"

@@ -1,0 +1,49 @@
+# Core
+numpy<2.0.0
+pandas
+scipy
+
+# Visualization
+matplotlib
+
+# CV
+opencv-python
+
+# Utils
+tqdm
+loguru
+pyyaml
+rich
+tabulate
+click
+requests
+orjson
+
+# Notebook
+jupyterlab
+ipython
+
+# File & Data Loop
+openpyxl
+pyarrow
+mcap
+mcap-ros2-support
+rosbags
+pyspark
+delta-spark
+
+# Geometry & Annotation
+transforms3d
+
+# Image
+pillow
+
+# Dev
+black
+isort
+flake8
+pytest
+
+# fix
+empy==3.3.4
+pygame==2.1.2
