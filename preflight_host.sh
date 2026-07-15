@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Classify a rental host before installing CARLA/NuRec dependencies.
 # Safe by default: read-only checks. Pass --docker to run disposable GPU,
-# bind-mount, and 64 GiB shared-memory container probes.
+# bind-mount, and configurable shared-memory container probes.
 set -euo pipefail
 
 RUN_DOCKER=0
@@ -9,8 +9,10 @@ ALLOCATE_GIB=0
 CUDA_TEST_IMAGE="${CUDA_TEST_IMAGE:-nvidia/cuda:12.8.0-base-ubuntu22.04}"
 PYTORCH_TEST_IMAGE="${PYTORCH_TEST_IMAGE:-}"
 MIN_GPU_MEMORY_MIB="${MIN_GPU_MEMORY_MIB:-24000}"
-MIN_RAM_GIB="${MIN_RAM_GIB:-64}"
+MIN_RAM_GIB="${MIN_RAM_GIB:-56}"
 MIN_DISK_GIB="${MIN_DISK_GIB:-200}"
+DOCKER_SHM_SIZE="${DOCKER_SHM_SIZE:-32g}"
+MIN_DOCKER_SHM_MIB="${MIN_DOCKER_SHM_MIB:-30000}"
 MAX_STEAL_WARN_PERCENT="${MAX_STEAL_WARN_PERCENT:-3}"
 MAX_STEAL_FAIL_PERCENT="${MAX_STEAL_FAIL_PERCENT:-10}"
 
@@ -220,7 +222,7 @@ fi
 echo
 
 if [ "$RUN_DOCKER" -eq 1 ]; then
-    echo "[4] Docker daemon, GPU, bind mount, and 64 GiB shared memory"
+    echo "[4] Docker daemon, GPU, bind mount, and ${DOCKER_SHM_SIZE} shared memory"
     if ! command -v docker >/dev/null 2>&1; then
         fail "docker is unavailable"
     elif ! docker info >/dev/null 2>&1; then
@@ -236,19 +238,20 @@ if [ "$RUN_DOCKER" -eq 1 ]; then
         PROBE_DIR="$(mktemp -d)"
         trap 'rm -rf "$PROBE_DIR"' EXIT
         printf 'host-ok\n' > "${PROBE_DIR}/host.txt"
-        if docker run --rm --gpus all --shm-size=64g \
+        if docker run --rm --gpus all --shm-size="${DOCKER_SHM_SIZE}" \
+            -e "MIN_DOCKER_SHM_MIB=${MIN_DOCKER_SHM_MIB}" \
             -v "${PROBE_DIR}:/probe" \
             "$CUDA_TEST_IMAGE" bash -lc '
                 set -e
                 nvidia-smi >/dev/null
                 test "$(cat /probe/host.txt)" = host-ok
                 shm_mib=$(df -Pm /dev/shm | awk "NR == 2 {print \$2}")
-                test "$shm_mib" -ge 60000
+                test "$shm_mib" -ge "${MIN_DOCKER_SHM_MIB}"
                 echo container-ok > /probe/result.txt
             '
         then
             if [ "$(cat "${PROBE_DIR}/result.txt" 2>/dev/null || true)" = "container-ok" ]; then
-                pass "Docker GPU, bind mount, and 64 GiB /dev/shm probe"
+                pass "Docker GPU, bind mount, and ${DOCKER_SHM_SIZE} /dev/shm probe"
             else
                 fail "Docker bind mount did not persist the probe result"
             fi

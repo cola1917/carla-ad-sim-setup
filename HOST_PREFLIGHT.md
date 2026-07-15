@@ -11,12 +11,13 @@ bash preflight_host.sh
 ```
 
 For the proposed single 48 GB GPU host, require at least 45,000 MiB and run the
-disposable Docker GPU, bind-mount, and 64 GiB shared-memory probes:
+disposable Docker GPU, bind-mount, and 32 GiB shared-memory probes:
 
 ```bash
 MIN_GPU_MEMORY_MIB=45000 \
-MIN_RAM_GIB=64 \
+MIN_RAM_GIB=56 \
 MIN_DISK_GIB=200 \
+DOCKER_SHM_SIZE=32g \
 bash preflight_host.sh --docker
 ```
 

@@ -34,6 +34,7 @@ Git 仓库只包含脚本，可 clone 到任意位置；运行时数据写入 `~
 
 ```bash
 bash stage0_miniconda.sh
+bash stage0_container_runtime.sh  # Docker + NVIDIA Container Toolkit; no VNC
 bash stage1_vnc.sh
 bash stage2_python.sh
 bash stage3_carla.sh
@@ -55,6 +56,9 @@ bash stage5_scene.sh
 | 5 | `stage5_scene.sh` | ScenarioRunner |
 
 不需要远程桌面时可跳过 Stage 1。
+
+NuRec/容器任务可先运行 `stage0_container_runtime.sh`。该脚本不安装 VNC，
+并会用 CUDA 容器验证 GPU 访问；重新登录 SSH 后当前用户可直接运行 Docker。
 
 ## 路径配置
 
