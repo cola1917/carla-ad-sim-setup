@@ -147,7 +147,7 @@ echo "[INFO] Set ros-bridge CARLA version to ${CARLA_VERSION}"
 
 sed -i 's/pcl_conversions tf2 tf2_ros)/pcl_conversions tf2 tf2_eigen tf2_geometry_msgs tf2_ros)/' \
     "$ROS_BRIDGE_SRC/pcl_recorder/CMakeLists.txt"
-sed -i 's|tf2_eigen/tf2_eigen.h|tf2_eigen/tf2_eigen.hpp|g' \
+sed -E -i 's|<tf2_eigen/tf2_eigen\.h(p*)>|<tf2_eigen/tf2_eigen.hpp>|g' \
     "$ROS_BRIDGE_SRC/pcl_recorder/include/PclRecorderROS2.h"
 
 colcon build --base-paths "$ROS_BRIDGE_SRC" --symlink-install --cmake-clean-cache \
