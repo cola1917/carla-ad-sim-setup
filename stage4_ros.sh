@@ -9,16 +9,23 @@ echo "Stage 4: ROS 2 + TUM Carla-Autoware-Bridge"
 echo "=========================================="
 
 echo "[1/4] Installing ROS 2 ${ROS_DISTRO} dependencies..."
-apt update
-apt install -y software-properties-common curl gnupg2 lsb-release
+run_root apt-get update
+run_root apt-get install -y software-properties-common curl gnupg2 lsb-release
 
+ROS_KEY_TMP="$(mktemp)"
+ROS_KEY_GPG_TMP="$(mktemp)"
 curl -sSL https://mirrors.tuna.tsinghua.edu.cn/rosdistro/ros.key \
-    -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu $(lsb_release -cs) main" \
-    | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+    -o "$ROS_KEY_TMP"
+gpg --dearmor --yes --output "$ROS_KEY_GPG_TMP" "$ROS_KEY_TMP"
+run_root install -m 0644 "$ROS_KEY_GPG_TMP" /usr/share/keyrings/ros-archive-keyring.gpg
+rm -f "$ROS_KEY_TMP" "$ROS_KEY_GPG_TMP"
+ROS_LIST_TMP="$(mktemp)"
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu $(lsb_release -cs) main" > "$ROS_LIST_TMP"
+run_root install -m 0644 "$ROS_LIST_TMP" /etc/apt/sources.list.d/ros2.list
+rm -f "$ROS_LIST_TMP"
 
-apt update
-apt install -y \
+run_root apt-get update
+run_root apt-get install -y \
     "ros-${ROS_DISTRO}-desktop" \
     "ros-${ROS_DISTRO}-rmw-cyclonedds-cpp" \
     "ros-${ROS_DISTRO}-tf2-eigen" \
@@ -26,7 +33,7 @@ apt install -y \
     python3-rosdep
 
 if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
-    rosdep init || true
+    run_root rosdep init || true
 fi
 rosdep update || true
 
@@ -38,15 +45,17 @@ if [ ! -d "ros-bridge" ]; then
     git clone --recursive https://github.com/carla-simulator/ros-bridge.git
 fi
 
-if [ ! -f "$BRIDGE_ZIP" ]; then
-    echo "[ERROR] Bridge zip not found: $BRIDGE_ZIP"
-    echo "Set BRIDGE_ZIP or put Carla-Autoware-Bridge-main.zip in ${BLOCKDATA_DIR}."
-    exit 1
+if [ ! -d "Carla-Autoware-Bridge/.git" ]; then
+    rm -rf Carla-Autoware-Bridge
+    if [ -f "$BRIDGE_ZIP" ]; then
+        rm -rf Carla-Autoware-Bridge-main
+        unzip -o -q "$BRIDGE_ZIP"
+        mv Carla-Autoware-Bridge-main Carla-Autoware-Bridge
+    else
+        echo "[INFO] Bridge zip absent; cloning ${BRIDGE_REPO_URL}"
+        git clone --recursive "$BRIDGE_REPO_URL" Carla-Autoware-Bridge
+    fi
 fi
-
-rm -rf Carla-Autoware-Bridge Carla-Autoware-Bridge-main
-unzip -o -q "$BRIDGE_ZIP"
-mv Carla-Autoware-Bridge-main Carla-Autoware-Bridge
 
 echo "[3/4] Building bridge workspace..."
 source "/opt/ros/${ROS_DISTRO}/setup.bash"
@@ -59,7 +68,7 @@ source "$CONDA_SH"
 conda activate "$CONDA_ENV_NAME"
 
 cd "$ROS2_WS"
-rosdepc install --from-paths src --ignore-src -r -y
+rosdep install --from-paths src --ignore-src -r -y
 
 echo "$CARLA_VERSION" > "src/ros-bridge/carla_ros_bridge/src/carla_ros_bridge/CARLA_VERSION"
 echo "[INFO] Set ros-bridge CARLA version to ${CARLA_VERSION}"

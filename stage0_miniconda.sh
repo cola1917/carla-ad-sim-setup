@@ -11,17 +11,20 @@ mkdir -p "$ENV_HOME" "$BLOCKDATA_DIR" "$ROS2_WS"
 
 echo "[2/4] Configuring apt mirror (${APT_MIRROR})..."
 if [ ! -f /etc/apt/sources.list.env_build.bak ]; then
-    cp /etc/apt/sources.list /etc/apt/sources.list.env_build.bak
+    run_root cp /etc/apt/sources.list /etc/apt/sources.list.env_build.bak
 fi
 
-tee /etc/apt/sources.list > /dev/null << EOF
+APT_SOURCES_TMP="$(mktemp)"
+cat > "$APT_SOURCES_TMP" << EOF
 deb ${APT_MIRROR} ${UBUNTU_CODENAME} main restricted universe multiverse
 deb ${APT_MIRROR} ${UBUNTU_CODENAME}-updates main restricted universe multiverse
 deb ${APT_MIRROR} ${UBUNTU_CODENAME}-security main restricted universe multiverse
 deb ${APT_MIRROR} ${UBUNTU_CODENAME}-backports main restricted universe multiverse
 EOF
+run_root install -m 0644 "$APT_SOURCES_TMP" /etc/apt/sources.list
+rm -f "$APT_SOURCES_TMP"
 
-apt update
+run_root apt-get update
 
 echo "[3/4] Installing Miniconda to ${CONDA_ROOT}..."
 if [ ! -f "$CONDA_SH" ]; then

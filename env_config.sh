@@ -4,6 +4,20 @@
 
 ENV_BUILD_ROOT="${ENV_BUILD_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
+# Run only host package/system-file operations as root. Runtime data and shell
+# configuration remain owned by the invoking user under ENV_HOME/HOME.
+if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+    ENV_BUILD_SUDO=()
+elif command -v sudo >/dev/null 2>&1; then
+    ENV_BUILD_SUDO=(sudo)
+else
+    echo "[ERROR] sudo is required for host package installation." >&2
+    return 1 2>/dev/null || exit 1
+fi
+run_root() {
+    "${ENV_BUILD_SUDO[@]}" "$@"
+}
+
 # Root directory for all generated runtime data (replaces legacy ~/blockdata layout).
 ENV_HOME="${ENV_HOME:-$HOME/sim-env}"
 
@@ -46,6 +60,7 @@ TURBOVNC_DEB="${TURBOVNC_DEB:-$BLOCKDATA_DIR/turbovnc_3.3_amd64.deb}"
 ROS_DISTRO="${ROS_DISTRO:-humble}"
 ROS2_WS="${ROS2_WS:-$ENV_HOME/carla-ros2-ws}"
 BRIDGE_ZIP="${BRIDGE_ZIP:-$BLOCKDATA_DIR/Carla-Autoware-Bridge-main.zip}"
+BRIDGE_REPO_URL="${BRIDGE_REPO_URL:-https://github.com/TUMFTM/Carla-Autoware-Bridge.git}"
 SCENARIO_RUNNER_ROOT="${SCENARIO_RUNNER_ROOT:-$BLOCKDATA_DIR/scenario_runner}"
 SCENARIO_RUNNER_TAG="${SCENARIO_RUNNER_TAG:-v${CARLA_VERSION}}"
 

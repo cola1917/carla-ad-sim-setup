@@ -17,8 +17,8 @@ else
 fi
 
 echo "[1] Installing graphics runtime libraries..."
-apt update
-apt install -y \
+run_root apt-get update
+run_root apt-get install -y \
     libgl1 \
     libegl1 \
     libglib2.0-0 \

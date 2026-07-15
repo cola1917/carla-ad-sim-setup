@@ -84,6 +84,7 @@ ENV_HOME=/data/sim-env bash stage3_carla.sh
 | `CARLA_ROOT` | `$BLOCKDATA_DIR/CARLA_0.9.16` | CARLA 解压目录 |
 | `CARLA_PORT` | `2000` | CARLA 服务端口 |
 | `ROS2_WS` | `$ENV_HOME/carla-ros2-ws` | ROS 2 工作空间 |
+| `BRIDGE_REPO_URL` | `https://github.com/TUMFTM/Carla-Autoware-Bridge.git` | Stage 4 在离线 zip 缺失时克隆的上游 |
 | `SCENARIO_RUNNER_ROOT` | `$BLOCKDATA_DIR/scenario_runner` | ScenarioRunner 目录 |
 | `PIP_INDEX_URL` | 清华 pip 源 | pip 镜像 |
 

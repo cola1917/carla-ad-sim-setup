@@ -6,7 +6,7 @@ source "${SCRIPT_DIR}/env_config.sh"
 
 echo "========== Stage 2: Python (Conda) =========="
 
-apt install -y \
+run_root apt-get install -y \
     build-essential \
     git \
     git-lfs \
