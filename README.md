@@ -79,6 +79,7 @@ ENV_HOME=/data/sim-env bash stage3_carla.sh
 | `ENV_HOME` | `~/sim-env` | 运行时根目录 |
 | `BLOCKDATA_DIR` | `$ENV_HOME/data` | 离线包与解压目录 |
 | `CONDA_ROOT` | `$ENV_HOME/miniconda3` | Miniconda 安装路径 |
+| `CONDARC` | `$CONDA_ROOT/.condarc` | 强制 Conda 使用项目写入的镜像配置，避免回落到需 ToS 的默认源 |
 | `CONDA_ENV_NAME` | `autodrive` | Conda 环境名 |
 | `CARLA_VERSION` | `0.9.16` | CARLA 版本 |
 | `CARLA_ROOT` | `$BLOCKDATA_DIR/CARLA_0.9.16` | CARLA 解压目录 |
