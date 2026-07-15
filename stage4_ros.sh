@@ -69,11 +69,27 @@ clone_at_ref() {
     local ref="$2"
     local destination="$3"
 
+    update_submodules() {
+        local checkout="$1"
+        local attempt
+        git -C "$checkout" submodule sync --recursive
+        for attempt in 1 2 3 4; do
+            if git -C "$checkout" -c http.version=HTTP/1.1 \
+                submodule update --init --recursive --jobs 1; then
+                return 0
+            fi
+            echo "[WARN] Submodule update failed (attempt ${attempt}/4); retrying with HTTP/1.1..."
+            sleep "$((attempt * 2))"
+        done
+        echo "[ERROR] Could not populate submodules after 4 attempts: $checkout"
+        return 1
+    }
+
     if [ -d "$destination/.git" ]; then
         current_ref="$(git -C "$destination" rev-parse HEAD)"
         if [ "$current_ref" = "$ref" ]; then
             echo "[INFO] Reusing pinned checkout: $destination ($ref)"
-            git -C "$destination" submodule update --init --recursive
+            update_submodules "$destination"
             return
         fi
         if [ -n "$(git -C "$destination" status --porcelain)" ]; then
@@ -85,7 +101,7 @@ clone_at_ref() {
             git -C "$destination" fetch origin "$ref"
         fi
         git -C "$destination" checkout --detach "$ref"
-        git -C "$destination" submodule update --init --recursive
+        update_submodules "$destination"
         return
     fi
     if [ -e "$destination" ]; then
@@ -93,9 +109,11 @@ clone_at_ref() {
         exit 1
     fi
 
-    git clone --recursive "$url" "$destination"
+    # Clone the parent independently so a transient submodule failure leaves a
+    # reusable checkout instead of an ambiguous half-cloned destination.
+    git -c http.version=HTTP/1.1 clone "$url" "$destination"
     git -C "$destination" checkout --detach "$ref"
-    git -C "$destination" submodule update --init --recursive
+    update_submodules "$destination"
 }
 
 if [ -d "ros-bridge/.git" ]; then
