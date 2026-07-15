@@ -47,3 +47,4 @@ pytest
 # fix
 empy==3.3.4
 pygame==2.1.2
+rclpy

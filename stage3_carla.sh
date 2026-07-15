@@ -45,7 +45,9 @@ echo "[3] Checking CARLA installation..."
 if [ ! -d "$CARLA_ROOT/PythonAPI" ]; then
     if [ ! -f "$CARLA_TAR_FILE" ]; then
         echo "[ERROR] CARLA archive not found: $CARLA_TAR_FILE"
-        echo "Set CARLA_TAR_FILE or put the archive in ${BLOCKDATA_DIR}."
+        echo "Download the official CARLA 0.9.16 archive first:"
+        echo "  bash ${SCRIPT_DIR}/download_carla.sh"
+        echo "Or set CARLA_TAR_FILE / place an existing archive in ${BLOCKDATA_DIR}."
         exit 1
     fi
 

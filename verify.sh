@@ -5,6 +5,7 @@
 #   bash verify.sh 0        # only Stage 0 checks
 #   bash verify.sh 3        # Stage 3 static + CARLA runtime (server must be running)
 #   bash verify.sh 4        # Stage 4 static + ROS 2 DDS runtime
+#   bash verify.sh host     # rental host / Pod / GPU / Docker preflight
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,6 +13,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/env_config.sh"
 
 STAGE_FILTER="${1:-all}"
+
+if [ "$STAGE_FILTER" = "host" ]; then
+    exec bash "${SCRIPT_DIR}/preflight_host.sh" --docker
+fi
 
 PASS=0
 FAIL=0
