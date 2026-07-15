@@ -4,8 +4,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/env_config.sh"
 
+if [ "$ROS_DISTRO" != "humble" ]; then
+    echo "[ERROR] Stage 4 targets ROS 2 Humble on Ubuntu 22.04; got ROS_DISTRO=$ROS_DISTRO."
+    exit 2
+fi
+
 echo "=========================================="
-echo "Stage 4: ROS 2 + TUM Carla-Autoware-Bridge"
+echo "Stage 4: ROS 2 + CARLA ROS Bridge"
 echo "=========================================="
 
 echo "[1/4] Installing ROS 2 ${ROS_DISTRO} dependencies..."
@@ -41,20 +46,47 @@ echo "[2/4] Preparing ROS 2 workspace: $ROS2_WS"
 mkdir -p "${ROS2_WS}/src"
 cd "${ROS2_WS}/src"
 
-if [ ! -d "ros-bridge" ]; then
-    git clone --recursive https://github.com/carla-simulator/ros-bridge.git
-fi
+clone_at_ref() {
+    local url="$1"
+    local ref="$2"
+    local destination="$3"
 
-if [ ! -d "Carla-Autoware-Bridge/.git" ]; then
-    rm -rf Carla-Autoware-Bridge
-    if [ -f "$BRIDGE_ZIP" ]; then
-        rm -rf Carla-Autoware-Bridge-main
-        unzip -o -q "$BRIDGE_ZIP"
-        mv Carla-Autoware-Bridge-main Carla-Autoware-Bridge
-    else
-        echo "[INFO] Bridge zip absent; cloning ${BRIDGE_REPO_URL}"
-        git clone --recursive "$BRIDGE_REPO_URL" Carla-Autoware-Bridge
+    if [ -d "$destination/.git" ]; then
+        current_ref="$(git -C "$destination" rev-parse HEAD)"
+        if [ "$current_ref" = "$ref" ]; then
+            echo "[INFO] Reusing pinned checkout: $destination ($ref)"
+            git -C "$destination" submodule update --init --recursive
+            return
+        fi
+        if [ -n "$(git -C "$destination" status --porcelain)" ]; then
+            echo "[ERROR] Existing checkout is at $current_ref and has local changes: $destination"
+            echo "Commit or remove those changes before switching to pinned ref $ref."
+            exit 1
+        fi
+        if ! git -C "$destination" cat-file -e "${ref}^{commit}" 2>/dev/null; then
+            git -C "$destination" fetch origin "$ref"
+        fi
+        git -C "$destination" checkout --detach "$ref"
+        git -C "$destination" submodule update --init --recursive
+        return
     fi
+    if [ -e "$destination" ]; then
+        echo "[ERROR] Destination exists but is not a Git checkout: $destination"
+        exit 1
+    fi
+
+    git clone --recursive "$url" "$destination"
+    git -C "$destination" checkout --detach "$ref"
+    git -C "$destination" submodule update --init --recursive
+}
+
+if [ -d "ros-bridge/.git" ]; then
+    ROS_BRIDGE_SRC="${ROS2_WS}/src/ros-bridge"
+    clone_at_ref "$CARLA_ROS_BRIDGE_REPO_URL" "$CARLA_ROS_BRIDGE_REF" "$ROS_BRIDGE_SRC"
+else
+    mkdir -p carla
+    ROS_BRIDGE_SRC="${ROS2_WS}/src/carla/ros-bridge"
+    clone_at_ref "$CARLA_ROS_BRIDGE_REPO_URL" "$CARLA_ROS_BRIDGE_REF" "$ROS_BRIDGE_SRC"
 fi
 
 echo "[3/4] Building bridge workspace..."
@@ -68,17 +100,17 @@ source "$CONDA_SH"
 conda activate "$CONDA_ENV_NAME"
 
 cd "$ROS2_WS"
-rosdep install --from-paths src --ignore-src -r -y
+rosdep install --from-paths "$ROS_BRIDGE_SRC" --ignore-src -r -y
 
-echo "$CARLA_VERSION" > "src/ros-bridge/carla_ros_bridge/src/carla_ros_bridge/CARLA_VERSION"
+echo "$CARLA_VERSION" > "$ROS_BRIDGE_SRC/carla_ros_bridge/src/carla_ros_bridge/CARLA_VERSION"
 echo "[INFO] Set ros-bridge CARLA version to ${CARLA_VERSION}"
 
 sed -i 's/pcl_conversions tf2 tf2_ros)/pcl_conversions tf2 tf2_eigen tf2_geometry_msgs tf2_ros)/' \
-    "$ROS2_WS/src/ros-bridge/pcl_recorder/CMakeLists.txt"
+    "$ROS_BRIDGE_SRC/pcl_recorder/CMakeLists.txt"
 sed -i 's|tf2_eigen/tf2_eigen.h|tf2_eigen/tf2_eigen.hpp|g' \
-    "$ROS2_WS/src/ros-bridge/pcl_recorder/include/PclRecorderROS2.h"
+    "$ROS_BRIDGE_SRC/pcl_recorder/include/PclRecorderROS2.h"
 
-colcon build --symlink-install
+colcon build --base-paths "$ROS_BRIDGE_SRC" --symlink-install
 
 echo "[4/4] Writing shell environment to ~/.bashrc..."
 BASHRC="$HOME/.bashrc"

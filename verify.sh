@@ -14,6 +14,11 @@ source "${SCRIPT_DIR}/env_config.sh"
 
 STAGE_FILTER="${1:-all}"
 
+if [ "$ROS_DISTRO" != "humble" ]; then
+    echo "[ERROR] Verification targets ROS 2 Humble; got ROS_DISTRO=$ROS_DISTRO."
+    exit 2
+fi
+
 if [ "$STAGE_FILTER" = "host" ]; then
     exec bash "${SCRIPT_DIR}/preflight_host.sh" --docker
 fi
@@ -172,6 +177,7 @@ run_stage4_runtime_tests() {
 
     check_cmd "ros2 topic command is available" "ros2 topic --help"
     check_cmd "colcon is available" "colcon --help"
+    check_cmd "import rclpy under ROS environment" "python -c 'import rclpy'"
     check_cmd "import carla under ROS environment" "python -c 'import carla'"
     check_cmd "carla_ros_bridge package prefix exists" \
         "ros2 pkg prefix carla_ros_bridge 2>/dev/null | grep -q install"
@@ -288,8 +294,11 @@ if should_run 3; then
 fi
 
 if should_run 4; then
-    echo "[Stage 4] ROS 2 + bridge installation"
+    echo "[Stage 4] ROS 2 + CARLA ROS bridge"
     check_cmd "ros2 command works" "source /opt/ros/${ROS_DISTRO}/setup.bash && ros2 -h"
+    check_cmd "active ROS distro is Humble" \
+        "source /opt/ros/humble/setup.bash && [ \"\${ROS_DISTRO}\" = humble ]"
+    check_file "ROS 2 distro setup" "/opt/ros/${ROS_DISTRO}/setup.bash"
     check_file "ROS 2 workspace install dir" "$ROS2_WS/install"
     if source "/opt/ros/${ROS_DISTRO}/setup.bash" && \
        source "$ROS2_WS/install/setup.bash" 2>/dev/null && \
@@ -309,6 +318,13 @@ if should_run 5; then
     echo "[Stage 5] ScenarioRunner"
     check_file "ScenarioRunner directory" "$SCENARIO_RUNNER_ROOT"
     check_file "ScenarioRunner main script" "$SCENARIO_RUNNER_ROOT/scenario_runner.py"
+    if activate_conda_env && \
+       export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla:${SCENARIO_RUNNER_ROOT}:${PYTHONPATH:-}" && \
+       python "$SCENARIO_RUNNER_ROOT/scenario_runner.py" --help > /dev/null 2>&1; then
+        pass "ScenarioRunner CLI and Python dependencies load"
+    else
+        fail "ScenarioRunner CLI and Python dependencies load"
+    fi
     check_bashrc_marker "ScenarioRunner block in ~/.bashrc" "# === env_build ScenarioRunner START ==="
     echo
 fi

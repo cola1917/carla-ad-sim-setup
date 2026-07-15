@@ -58,11 +58,11 @@ VNC_GEOMETRY="${VNC_GEOMETRY:-1920x1080}"
 VNC_PORT="${VNC_PORT:-5901}"
 TURBOVNC_DEB="${TURBOVNC_DEB:-$BLOCKDATA_DIR/turbovnc_3.3_amd64.deb}"
 
-# ROS / bridge settings.
+# ROS / CARLA bridge settings.
 ROS_DISTRO="${ROS_DISTRO:-humble}"
 ROS2_WS="${ROS2_WS:-$ENV_HOME/carla-ros2-ws}"
-BRIDGE_ZIP="${BRIDGE_ZIP:-$BLOCKDATA_DIR/Carla-Autoware-Bridge-main.zip}"
-BRIDGE_REPO_URL="${BRIDGE_REPO_URL:-https://github.com/TUMFTM/Carla-Autoware-Bridge.git}"
+CARLA_ROS_BRIDGE_REPO_URL="${CARLA_ROS_BRIDGE_REPO_URL:-https://github.com/carla-simulator/ros-bridge.git}"
+CARLA_ROS_BRIDGE_REF="${CARLA_ROS_BRIDGE_REF:-e9063d97ff5a724f76adbb1b852dc71da1dcfeec}"
 SCENARIO_RUNNER_ROOT="${SCENARIO_RUNNER_ROOT:-$BLOCKDATA_DIR/scenario_runner}"
 SCENARIO_RUNNER_TAG="${SCENARIO_RUNNER_TAG:-v${CARLA_VERSION}}"
 

@@ -93,6 +93,5 @@ echo "Conda root:    ${CONDA_ROOT}"
 echo
 echo "Put offline files in ${BLOCKDATA_DIR}:"
 echo "  - carla-${CARLA_VERSION_DASH}-linux.tar.gz"
-echo "  - Carla-Autoware-Bridge-main.zip"
 echo "  - turbovnc_3.3_amd64.deb"
 echo "======================================="

@@ -14,7 +14,6 @@
 ├── data/                # 离线包与解压产物
 │   ├── carla-0-9-16-linux.tar.gz
 │   ├── turbovnc_3.3_amd64.deb
-│   ├── Carla-Autoware-Bridge-main.zip
 │   ├── CARLA_0.9.16/
 │   └── scenario_runner/
 └── carla-ros2-ws/       # ROS 2 工作空间（Stage 4）
@@ -27,7 +26,6 @@ Git 仓库只包含脚本，可 clone 到任意位置；运行时数据写入 `~
 1. Clone 本仓库。
 2. 将离线大文件放入 `~/sim-env/data/`（若尚未运行 Stage 0，需先创建该目录）：
    - `carla-0-9-16-linux.tar.gz`
-   - `Carla-Autoware-Bridge-main.zip`
    - `turbovnc_3.3_amd64.deb`
 3. 按需修改 `env_config.sh`，或复制 `env_config.local.sh.example` 为 `env_config.local.sh`。
 4. 按顺序执行各 Stage：
@@ -52,7 +50,7 @@ bash stage5_scene.sh
 | 1 | `stage1_vnc.sh` | XFCE 桌面 + TurboVNC 远程桌面 |
 | 2 | `stage2_python.sh` | 创建 Conda 环境 `autodrive`，安装 Python 依赖 |
 | 3 | `stage3_carla.sh` | 解压 CARLA，安装 Python API |
-| 4 | `stage4_ros.sh` | ROS 2 Humble + Carla-Autoware-Bridge |
+| 4 | `stage4_ros.sh` | ROS 2 Humble + CARLA ROS Bridge |
 | 5 | `stage5_scene.sh` | ScenarioRunner |
 
 不需要远程桌面时可跳过 Stage 1。
@@ -85,9 +83,19 @@ ENV_HOME=/data/sim-env bash stage3_carla.sh
 | `CARLA_ROOT` | `$BLOCKDATA_DIR/CARLA_0.9.16` | CARLA 解压目录 |
 | `CARLA_PORT` | `2000` | CARLA 服务端口 |
 | `ROS2_WS` | `$ENV_HOME/carla-ros2-ws` | ROS 2 工作空间 |
-| `BRIDGE_REPO_URL` | `https://github.com/TUMFTM/Carla-Autoware-Bridge.git` | Stage 4 在离线 zip 缺失时克隆的上游 |
+| `CARLA_ROS_BRIDGE_REPO_URL` | `https://github.com/carla-simulator/ros-bridge.git` | CARLA ROS Bridge 上游 |
+| `CARLA_ROS_BRIDGE_REF` | 固定提交 | ROS Bridge 的可复现版本 |
 | `SCENARIO_RUNNER_ROOT` | `$BLOCKDATA_DIR/scenario_runner` | ScenarioRunner 目录 |
 | `PIP_INDEX_URL` | 清华 pip 源 | pip 镜像 |
+
+### Stage 4
+
+Stage 4 安装 ROS 2 Humble、CycloneDDS 和官方 CARLA ROS Bridge：
+
+```bash
+bash stage4_ros.sh
+bash verify.sh 4
+```
 
 Stage 0 / 2 / 4 / 5 会向 `~/.bashrc` 写入带 marker 的环境块（conda init、环境激活、ROS 2、CARLA 路径等）。
 Stage 0 还会将项目镜像配置同步到 `~/.condarc`，首次覆盖前备份为
