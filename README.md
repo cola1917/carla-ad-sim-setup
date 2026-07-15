@@ -60,7 +60,8 @@ bash stage5_scene.sh
 NuRec/容器任务可先运行 `stage0_container_runtime.sh`。该脚本不安装 VNC，
 并会用 CUDA 容器验证 GPU 访问；重新登录 SSH 后当前用户可直接运行 Docker。
 若 Docker 官方 apt CDN 在租用网络中不稳定，可设置
-`DOCKER_APT_URI=https://mirrors.aliyun.com/docker-ce/linux/ubuntu`；多次索引失败后
+`DOCKER_APT_URI=https://mirrors.aliyun.com/docker-ce/linux/ubuntu`；签名密钥地址会
+随镜像源自动切换。多次索引或安装失败后
 脚本会自动回退到 Ubuntu 的 `docker.io` 包。
 
 ## 路径配置
