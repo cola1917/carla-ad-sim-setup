@@ -6,7 +6,7 @@ set -euo pipefail
 
 RUN_DOCKER=0
 ALLOCATE_GIB=0
-CUDA_TEST_IMAGE="${CUDA_TEST_IMAGE:-nvidia/cuda:12.8.0-base-ubuntu22.04}"
+CUDA_TEST_IMAGE="${CUDA_TEST_IMAGE:-nvcr.io/nvidia/cuda:12.8.0-base-ubuntu22.04}"
 PYTORCH_TEST_IMAGE="${PYTORCH_TEST_IMAGE:-}"
 MIN_GPU_MEMORY_MIB="${MIN_GPU_MEMORY_MIB:-24000}"
 MIN_RAM_GIB="${MIN_RAM_GIB:-56}"
@@ -293,9 +293,17 @@ if [ "${#CONTAINER_SIGNALS[@]}" -gt 0 ]; then
 elif [ "$FAIL" -gt 0 ]; then
     echo "REJECT: no Pod marker was proven, but one or more host requirements failed."
 elif [ -n "$VM_VIRT" ] && [ "$VM_VIRT" != "none" ]; then
-    echo "ACCEPTABLE: full VM candidate; review warnings and require Docker tests before renting."
+    if [ "$RUN_DOCKER" -eq 1 ]; then
+        echo "ACCEPTABLE: full VM; Docker probes completed."
+    else
+        echo "ACCEPTABLE: full VM candidate; review warnings and require Docker tests before renting."
+    fi
 else
-    echo "ACCEPTABLE: bare-metal candidate; review warnings and require Docker tests before renting."
+    if [ "$RUN_DOCKER" -eq 1 ]; then
+        echo "ACCEPTABLE: bare metal; Docker probes completed."
+    else
+        echo "ACCEPTABLE: bare-metal candidate; review warnings and require Docker tests before renting."
+    fi
 fi
 echo "Summary: ${PASS} passed, ${FAIL} failed, ${WARN} warnings"
 
