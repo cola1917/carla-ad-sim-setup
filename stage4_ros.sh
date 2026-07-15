@@ -128,12 +128,15 @@ fi
 echo "[3/4] Building bridge workspace..."
 source "/opt/ros/${ROS_DISTRO}/setup.bash"
 
-if [ ! -f "$CONDA_SH" ]; then
-    echo "[ERROR] Conda profile not found: $CONDA_SH"
+# Build ROS packages with Ubuntu's Python. Activating Conda here makes CMake
+# select the Conda interpreter, which does not own ROS build-time modules such
+# as catkin_pkg. The Conda CARLA environment is layered in only at runtime.
+if ! /usr/bin/python3 -c 'import catkin_pkg' > /dev/null 2>&1; then
+    echo "[ERROR] ROS build Python is missing catkin_pkg: /usr/bin/python3"
     exit 1
 fi
-source "$CONDA_SH"
-conda activate "$CONDA_ENV_NAME"
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
+hash -r
 
 cd "$ROS2_WS"
 rosdep install --from-paths "$ROS_BRIDGE_SRC" --ignore-src -r -y
@@ -146,7 +149,10 @@ sed -i 's/pcl_conversions tf2 tf2_ros)/pcl_conversions tf2 tf2_eigen tf2_geometr
 sed -i 's|tf2_eigen/tf2_eigen.h|tf2_eigen/tf2_eigen.hpp|g' \
     "$ROS_BRIDGE_SRC/pcl_recorder/include/PclRecorderROS2.h"
 
-colcon build --base-paths "$ROS_BRIDGE_SRC" --symlink-install
+colcon build --base-paths "$ROS_BRIDGE_SRC" --symlink-install --cmake-clean-cache \
+    --cmake-args \
+        -DPython3_EXECUTABLE=/usr/bin/python3 \
+        -DPYTHON_EXECUTABLE=/usr/bin/python3
 
 echo "[4/4] Writing shell environment to ~/.bashrc..."
 BASHRC="$HOME/.bashrc"
