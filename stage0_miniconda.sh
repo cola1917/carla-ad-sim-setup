@@ -52,6 +52,20 @@ custom_channels:
   pytorch: https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud
 EOF
 
+# Conda merges the user config even when CONDARC points at the prefix config.
+# Replace stale default-channel entries deterministically, keeping one backup.
+if [ -f "$HOME/.condarc" ] && [ ! -f "$HOME/.condarc.env_build.bak" ]; then
+    cp "$HOME/.condarc" "$HOME/.condarc.env_build.bak"
+fi
+cp "$CONDA_ROOT/.condarc" "$HOME/.condarc"
+
+# Conda merges the user config even when CONDARC points at the prefix config.
+# Replace stale default-channel entries deterministically, keeping one backup.
+if [ -f "$HOME/.condarc" ] && [ ! -f "$HOME/.condarc.env_build.bak" ]; then
+    cp "$HOME/.condarc" "$HOME/.condarc.env_build.bak"
+fi
+cp "$CONDA_ROOT/.condarc" "$HOME/.condarc"
+
 echo "[4/4] Configuring shell and pip mirrors..."
 mkdir -p "$HOME/.pip"
 cat > "$HOME/.pip/pip.conf" << EOF

@@ -90,6 +90,8 @@ ENV_HOME=/data/sim-env bash stage3_carla.sh
 | `PIP_INDEX_URL` | 清华 pip 源 | pip 镜像 |
 
 Stage 0 / 2 / 4 / 5 会向 `~/.bashrc` 写入带 marker 的环境块（conda init、环境激活、ROS 2、CARLA 路径等）。
+Stage 0 还会将项目镜像配置同步到 `~/.condarc`，首次覆盖前备份为
+`~/.condarc.env_build.bak`，防止旧配置重新引入需交互 ToS 的默认 channel。
 
 ## 日常使用
 
