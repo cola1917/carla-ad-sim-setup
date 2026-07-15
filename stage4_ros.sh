@@ -30,6 +30,24 @@ run_root install -m 0644 "$ROS_LIST_TMP" /etc/apt/sources.list.d/ros2.list
 rm -f "$ROS_LIST_TMP"
 
 run_root apt-get update
+
+# Some rental images contain an orphaned libicu70 point build that is absent
+# from their configured Jammy mirrors. ROS desktop pulls libicu-dev, whose
+# dependency requires an exact libicu70 version. Repair only that mismatched
+# runtime package instead of performing an unrelated full-system upgrade.
+ICU_REQUIRED_VERSION="$(
+    apt-cache show libicu-dev 2>/dev/null \
+        | sed -n 's/^Depends:.*libicu70 (= \([^)]*\)).*/\1/p' \
+        | head -n 1
+)"
+ICU_INSTALLED_VERSION="$(dpkg-query -W -f='${Version}' libicu70 2>/dev/null || true)"
+if [ -n "$ICU_REQUIRED_VERSION" ] && \
+   [ -n "$ICU_INSTALLED_VERSION" ] && \
+   [ "$ICU_INSTALLED_VERSION" != "$ICU_REQUIRED_VERSION" ]; then
+    echo "[WARN] Repairing libicu70 version mismatch: installed=${ICU_INSTALLED_VERSION}, required=${ICU_REQUIRED_VERSION}"
+    run_root apt-get install -y --allow-downgrades "libicu70=${ICU_REQUIRED_VERSION}"
+fi
+
 run_root apt-get install -y \
     "ros-${ROS_DISTRO}-desktop" \
     "ros-${ROS_DISTRO}-rmw-cyclonedds-cpp" \
