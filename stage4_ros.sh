@@ -53,6 +53,7 @@ run_root apt-get install -y \
     "ros-${ROS_DISTRO}-rmw-cyclonedds-cpp" \
     "ros-${ROS_DISTRO}-tf2-eigen" \
     python3-colcon-common-extensions \
+    python3-pip \
     python3-rosdep
 
 if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
