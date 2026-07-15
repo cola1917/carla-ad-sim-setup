@@ -82,6 +82,8 @@ ENV_HOME=/data/sim-env bash stage3_carla.sh
 | `CARLA_VERSION` | `0.9.16` | CARLA 版本 |
 | `CARLA_ROOT` | `$BLOCKDATA_DIR/CARLA_0.9.16` | CARLA 解压目录 |
 | `CARLA_PORT` | `2000` | CARLA 服务端口 |
+| `CARLA_RENDER_MODE` | `offscreen` | `offscreen` 无需 VNC/X11；`display` 使用现有 X/VNC 显示 |
+| `CARLA_DISPLAY` | `:1` | display 模式在 `DISPLAY` 未设置时使用的 X 显示号 |
 | `ROS2_WS` | `$ENV_HOME/carla-ros2-ws` | ROS 2 工作空间 |
 | `CARLA_ROS_BRIDGE_REPO_URL` | `https://github.com/carla-simulator/ros-bridge.git` | CARLA ROS Bridge 上游 |
 | `CARLA_ROS_BRIDGE_REF` | 固定提交 | ROS Bridge 的可复现版本 |
@@ -108,6 +110,14 @@ bash start_vnc.sh
 bash start_carla.sh
 bash verify.sh 3        # CARLA 安装 + 运行时冒烟
 bash verify.sh 4        # ROS 2 安装 + DDS 通信冒烟
+```
+
+`start_carla.sh` 默认由当前普通用户直接运行，并使用
+`-RenderOffScreen -nosound`；不会创建专用用户、修改 CARLA 目录所有权或调用
+`xhost`，因此没有 VNC 也可启动。需要可视窗口时显式设置：
+
+```bash
+CARLA_RENDER_MODE=display CARLA_DISPLAY=:1 bash start_carla.sh
 ```
 
 ## 验证

@@ -1,43 +1,55 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=env_config.sh
 source "${SCRIPT_DIR}/env_config.sh"
 
-VNC_DISPLAY=":${VNC_DISPLAY_NUM}"
+CARLA_LAUNCHER="${CARLA_ROOT}/CarlaUE4.sh"
 
 echo "=============================="
-echo "Preparing CARLA environment"
+echo "Starting CARLA ${CARLA_VERSION}"
 echo "=============================="
 
-if [ ! -d "$CARLA_ROOT" ]; then
-    echo "[ERROR] CARLA_ROOT does not exist: $CARLA_ROOT"
-    echo "Run stage3_carla.sh first or set CARLA_ROOT in env_config.sh."
+if [ ! -x "$CARLA_LAUNCHER" ]; then
+    echo "[ERROR] CARLA launcher is absent or not executable: $CARLA_LAUNCHER"
+    echo "Run stage3_carla.sh first or set CARLA_ROOT correctly."
     exit 1
 fi
 
-if ! id "$CARLA_RUN_USER" > /dev/null 2>&1; then
-    echo "[INFO] User '${CARLA_RUN_USER}' not found. Creating user..."
-    useradd -m -s /bin/bash "$CARLA_RUN_USER"
-    usermod -aG video,render "$CARLA_RUN_USER"
-else
-    echo "[INFO] User '${CARLA_RUN_USER}' already exists."
-fi
+case "$CARLA_RENDER_MODE" in
+    offscreen)
+        RENDER_ARGS=(-RenderOffScreen -nosound)
+        ;;
+    display)
+        export DISPLAY="${DISPLAY:-${CARLA_DISPLAY}}"
+        DISPLAY_NUM="${DISPLAY#:}"
+        DISPLAY_NUM="${DISPLAY_NUM%%.*}"
+        if [ ! -S "/tmp/.X11-unix/X${DISPLAY_NUM}" ]; then
+            echo "[ERROR] CARLA_RENDER_MODE=display, but no X server is available at DISPLAY=${DISPLAY}."
+            echo "Start X/VNC first or use the default CARLA_RENDER_MODE=offscreen."
+            exit 1
+        fi
+        RENDER_ARGS=()
+        ;;
+    *)
+        echo "[ERROR] CARLA_RENDER_MODE must be 'offscreen' or 'display'; got: ${CARLA_RENDER_MODE}"
+        exit 2
+        ;;
+esac
 
-echo "[INFO] Configuring directory permissions..."
-if [ "$(id -u)" -eq 0 ]; then
-    chmod 755 "$HOME" || true
-fi
-chown -R "${CARLA_RUN_USER}:${CARLA_RUN_USER}" "$CARLA_ROOT"
-chmod -R o+x "$ENV_HOME" || true
+echo "  user:        $(id -un) (uid=$(id -u))"
+echo "  root:        ${CARLA_ROOT}"
+echo "  port:        ${CARLA_PORT}"
+echo "  quality:     ${CARLA_QUALITY}"
+echo "  render mode: ${CARLA_RENDER_MODE}"
 
-echo "[INFO] Configuring X11 access..."
-export DISPLAY="$VNC_DISPLAY"
-xhost +
+cd "$CARLA_ROOT"
 
-echo "[INFO] Starting CARLA as '${CARLA_RUN_USER}' on port ${CARLA_PORT}..."
-su "$CARLA_RUN_USER" -c "
-    export DISPLAY=${VNC_DISPLAY}
-    cd '${CARLA_ROOT}'
-    ./CarlaUE4.sh -world-port=${CARLA_PORT} -quality-level=${CARLA_QUALITY}
-"
+# No user creation, chown, sudo, xhost, DISPLAY, or VNC is needed in the
+# default offscreen mode. Extra launcher flags may be appended by the caller.
+exec "$CARLA_LAUNCHER" \
+    "-world-port=${CARLA_PORT}" \
+    "-quality-level=${CARLA_QUALITY}" \
+    "${RENDER_ARGS[@]}" \
+    "$@"
