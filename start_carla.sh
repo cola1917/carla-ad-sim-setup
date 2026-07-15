@@ -27,7 +27,7 @@ case "$CARLA_RENDER_MODE" in
         DISPLAY_NUM="${DISPLAY_NUM%%.*}"
         if [ ! -S "/tmp/.X11-unix/X${DISPLAY_NUM}" ]; then
             echo "[ERROR] CARLA_RENDER_MODE=display, but no X server is available at DISPLAY=${DISPLAY}."
-            echo "Start X/VNC first or use the default CARLA_RENDER_MODE=offscreen."
+            echo "Start an X desktop first or use CARLA_RENDER_MODE=offscreen for unattended runs."
             exit 1
         fi
         RENDER_ARGS=()
@@ -46,8 +46,9 @@ echo "  render mode: ${CARLA_RENDER_MODE}"
 
 cd "$CARLA_ROOT"
 
-# No user creation, chown, sudo, xhost, DISPLAY, or VNC is needed in the
-# default offscreen mode. Extra launcher flags may be appended by the caller.
+# No user creation, chown, sudo, or xhost is performed. Display mode reuses the
+# current user's X session; offscreen mode needs no X/VNC. Extra launcher flags
+# may be appended by the caller.
 exec "$CARLA_LAUNCHER" \
     "-world-port=${CARLA_PORT}" \
     "-quality-level=${CARLA_QUALITY}" \
