@@ -100,6 +100,10 @@ bash verify.sh 4
 ```
 
 Stage 0 / 2 / 4 / 5 会向 `~/.bashrc` 写入带 marker 的环境块（conda init、环境激活、ROS 2、CARLA 路径等）。
+Stage 4 会先激活 Python 3.10 的 `autodrive`，再叠加 ROS 2 Humble 和 workspace；
+ROS 构建辅助模块来自 Ubuntu 3.10 的 `dist-packages`。CARLA、ROS 节点和
+ScenarioRunner 因而共用 `autodrive`，同时不会把该环境的 site-packages 注入
+Miniconda base 或其他 Python 版本。
 Stage 0 还会将项目镜像配置同步到 `~/.condarc`，首次覆盖前备份为
 `~/.condarc.env_build.bak`，防止旧配置重新引入需交互 ToS 的默认 channel。
 

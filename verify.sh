@@ -81,15 +81,24 @@ activate_conda_env() {
     if [ ! -f "$CONDA_SH" ]; then
         return 1
     fi
+    set +u
     # shellcheck disable=SC1090
     source "$CONDA_SH"
     conda activate "$CONDA_ENV_NAME"
+    local status=$?
+    set -u
+    return "$status"
 }
 
 activate_ros_env() {
     # ROS-generated setup scripts probe optional variables without `${var:-}`
     # and therefore cannot be sourced under this verifier's nounset mode.
     set +u
+    activate_conda_env || {
+        set -u
+        return 1
+    }
+    export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
     # shellcheck disable=SC1091
     source "/opt/ros/${ROS_DISTRO}/setup.bash"
     # shellcheck disable=SC1091
@@ -97,7 +106,7 @@ activate_ros_env() {
     set -u
     export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     export CARLA_ROOT
-    activate_conda_env
+    [ "$(command -v python)" = "${CONDA_ROOT}/envs/${CONDA_ENV_NAME}/bin/python" ]
 }
 
 cleanup_ros_demo_nodes() {
@@ -204,6 +213,37 @@ run_stage4_runtime_tests() {
     else
         fail "ROS 2 talker/listener communication"
     fi
+
+    if carla_server_reachable; then
+        local current_town bridge_log bridge_exit=0
+        current_town="$(python - <<'PY'
+import os
+import carla
+
+client = carla.Client(os.environ["CARLA_HOST"], int(os.environ["CARLA_PORT"]))
+client.set_timeout(5.0)
+print(client.get_world().get_map().name.rsplit("/", 1)[-1])
+PY
+)"
+        bridge_log="$(mktemp)"
+        timeout --signal=INT --kill-after=5 15 \
+            ros2 launch carla_ros_bridge carla_ros_bridge.launch.py \
+            "host:=${CARLA_HOST}" "port:=${CARLA_PORT}" timeout:=5 \
+            synchronous_mode:=False register_all_sensors:=False \
+            "town:=${current_town}" > "$bridge_log" 2>&1 || bridge_exit=$?
+
+        if [ "$bridge_exit" -eq 124 ] && \
+           grep -q "Created Spectator" "$bridge_log" && \
+           ! grep -Eq "Traceback|\[ERROR\]" "$bridge_log"; then
+            pass "CARLA ROS bridge runtime connection (${CARLA_HOST}:${CARLA_PORT}, ${current_town})"
+        else
+            fail "CARLA ROS bridge runtime connection (${CARLA_HOST}:${CARLA_PORT})"
+            tail -20 "$bridge_log" | sed 's/^/    /'
+        fi
+        rm -f "$bridge_log"
+    else
+        warn "CARLA ROS bridge runtime skipped (CARLA is not reachable)"
+    fi
 }
 
 echo "=========================================="
@@ -309,7 +349,7 @@ if should_run 4; then
        source "/opt/ros/${ROS_DISTRO}/setup.bash" && \
        source "$ROS2_WS/install/setup.bash" 2>/dev/null && \
        set -u && \
-       ros2 pkg list 2>/dev/null | grep -qw carla_ros_bridge; then
+       ros2 pkg prefix carla_ros_bridge > /dev/null 2>&1; then
         pass "carla_ros_bridge package registered"
     else
         fail "carla_ros_bridge package registered"

@@ -127,17 +127,28 @@ else
 fi
 
 echo "[3/4] Building bridge workspace..."
-source "/opt/ros/${ROS_DISTRO}/setup.bash"
-
-# Build ROS packages with Ubuntu's Python. Activating Conda here makes CMake
-# select the Conda interpreter, which does not own ROS build-time modules such
-# as catkin_pkg. The Conda CARLA environment is layered in only at runtime.
-if ! /usr/bin/python3 -c 'import catkin_pkg' > /dev/null 2>&1; then
-    echo "[ERROR] ROS build Python is missing catkin_pkg: /usr/bin/python3"
+if [ ! -f "$CONDA_SH" ]; then
+    echo "[ERROR] Conda profile not found: $CONDA_SH"
     exit 1
 fi
-export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
-hash -r
+source "$CONDA_SH"
+conda activate "$CONDA_ENV_NAME"
+
+# ROS Humble and autodrive both use Python 3.10. Keep the Conda interpreter as
+# the single runtime while exposing Ubuntu's ROS build helpers (catkin_pkg,
+# empy, and friends) from dist-packages. This is scoped to the activated env;
+# no Conda site-packages path is injected into other Python versions.
+export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
+source "/opt/ros/${ROS_DISTRO}/setup.bash"
+ROS_PYTHON="$(command -v python)"
+if [ "$ROS_PYTHON" != "${CONDA_ROOT}/envs/${CONDA_ENV_NAME}/bin/python" ]; then
+    echo "[ERROR] Expected autodrive Python, got: $ROS_PYTHON"
+    exit 1
+fi
+if ! python -c 'import catkin_pkg, carla, rclpy' > /dev/null 2>&1; then
+    echo "[ERROR] autodrive Python cannot import the ROS/CARLA build prerequisites."
+    exit 1
+fi
 
 cd "$ROS2_WS"
 rosdep install --from-paths "$ROS_BRIDGE_SRC" --ignore-src -r -y
@@ -152,8 +163,8 @@ sed -E -i 's|<tf2_eigen/tf2_eigen\.h(p*)>|<tf2_eigen/tf2_eigen.hpp>|g' \
 
 colcon build --base-paths "$ROS_BRIDGE_SRC" --symlink-install --cmake-clean-cache \
     --cmake-args \
-        -DPython3_EXECUTABLE=/usr/bin/python3 \
-        -DPYTHON_EXECUTABLE=/usr/bin/python3
+        "-DPython3_EXECUTABLE=${ROS_PYTHON}" \
+        "-DPYTHON_EXECUTABLE=${ROS_PYTHON}"
 
 echo "[4/4] Writing shell environment to ~/.bashrc..."
 BASHRC="$HOME/.bashrc"
@@ -164,10 +175,12 @@ TMP_BASHRC="$(mktemp)"
 sed "/${START_MARKER}/,/${END_MARKER}/d" "$BASHRC" > "$TMP_BASHRC"
 cat > "$BASHRC" << EOF
 ${START_MARKER}
+source ${CONDA_SH}
+conda activate ${CONDA_ENV_NAME}
+export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
 source /opt/ros/${ROS_DISTRO}/setup.bash
 source ${ROS2_WS}/install/setup.bash
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export PYTHONPATH="${CONDA_ROOT}/envs/${CONDA_ENV_NAME}/lib/python${PYTHON_VERSION}/site-packages:\${PYTHONPATH}"
 ${END_MARKER}
 EOF
 cat "$TMP_BASHRC" >> "$BASHRC"
