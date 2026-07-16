@@ -12,6 +12,8 @@ if [ ! -f "$CONDA_SH" ]; then
     echo "[ERROR] Conda profile not found: $CONDA_SH"
     exit 1
 fi
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 source "$CONDA_SH"
 conda activate "$CONDA_ENV_NAME"
 
@@ -85,14 +87,14 @@ END_MARKER="# === env_build ScenarioRunner END ==="
 TMP_BASHRC="$(mktemp)"
 
 sed "/${START_MARKER}/,/${END_MARKER}/d" "$BASHRC" > "$TMP_BASHRC"
-cat > "$BASHRC" << EOF
+cat "$TMP_BASHRC" > "$BASHRC"
+cat >> "$BASHRC" << EOF
 ${START_MARKER}
 export CARLA_ROOT=${CARLA_ROOT}
 export SCENARIO_RUNNER_ROOT=${SCENARIO_RUNNER_ROOT}
-export PYTHONPATH=\${CARLA_ROOT}/PythonAPI/carla:\${SCENARIO_RUNNER_ROOT}:\${PYTHONPATH}
+export PYTHONPATH=\${CARLA_ROOT}/PythonAPI/carla:\${SCENARIO_RUNNER_ROOT}:\${PYTHONPATH:-}
 ${END_MARKER}
 EOF
-cat "$TMP_BASHRC" >> "$BASHRC"
 rm "$TMP_BASHRC"
 
 echo "Stage 5 completed."

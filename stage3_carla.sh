@@ -64,6 +64,8 @@ if [ ! -f "$CONDA_SH" ]; then
     exit 1
 fi
 
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 source "$CONDA_SH"
 conda activate "$CONDA_ENV_NAME"
 

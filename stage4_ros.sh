@@ -131,6 +131,10 @@ if [ ! -f "$CONDA_SH" ]; then
     echo "[ERROR] Conda profile not found: $CONDA_SH"
     exit 1
 fi
+# A stale shell or an older generated bashrc may expose base Conda's Python
+# packages here. Keep both Conda's control plane and autodrive isolated.
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 source "$CONDA_SH"
 conda activate "$CONDA_ENV_NAME"
 
@@ -175,9 +179,11 @@ TMP_BASHRC="$(mktemp)"
 sed "/${START_MARKER}/,/${END_MARKER}/d" "$BASHRC" > "$TMP_BASHRC"
 cat > "$BASHRC" << EOF
 ${START_MARKER}
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 source ${CONDA_SH}
 conda activate ${CONDA_ENV_NAME}
-export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
+export PYTHONPATH="/usr/lib/python3/dist-packages"
 source /opt/ros/${ROS_DISTRO}/setup.bash
 source ${ROS2_WS}/install/setup.bash
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp

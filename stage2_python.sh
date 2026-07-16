@@ -26,6 +26,8 @@ if [ ! -f "$CONDA_SH" ]; then
     exit 1
 fi
 
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 source "$CONDA_SH"
 
 if ! conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
@@ -41,6 +43,8 @@ touch "$BASHRC"
 sed "/${START_MARKER}/,/${END_MARKER}/d" "$BASHRC" > "$TMP_BASHRC"
 cat > "$BASHRC" << EOF
 ${START_MARKER}
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
 source ${CONDA_SH}
 conda activate ${CONDA_ENV_NAME}
 ${END_MARKER}

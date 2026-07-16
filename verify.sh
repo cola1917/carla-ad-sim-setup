@@ -77,36 +77,123 @@ check_bashrc_marker() {
     fi
 }
 
+sanitize_inherited_pythonpath() {
+    local raw="${1-}"
+    local entry
+    local clean=""
+    local -a entries=()
+
+    IFS=':' read -r -a entries <<< "$raw"
+    for entry in "${entries[@]}"; do
+        case "$entry" in
+            "$CONDA_ROOT"/lib/python*/site-packages|"$CONDA_ROOT"/lib/python*/site-packages/*)
+                continue
+                ;;
+        esac
+        if [ -n "$clean" ]; then
+            clean="${clean}:"
+        fi
+        clean="${clean}${entry}"
+    done
+    printf '%s' "$clean"
+}
+
 activate_conda_env() {
     if [ ! -f "$CONDA_SH" ]; then
         return 1
     fi
-    set +u
+
+    local nounset_was_set=0
+    local status=0
+    local inherited_pythonpath="${PYTHONPATH-}"
+    local sanitized_pythonpath=""
+    if [[ $- == *u* ]]; then
+        nounset_was_set=1
+        set +u
+    fi
+
+    # Never let a caller's PYTHONPATH inject base/system packages into the
+    # autodrive interpreter or Conda's own Python control plane.
+    unset PYTHONPATH
+    export PYTHONNOUSERSITE=1
     # shellcheck disable=SC1090
-    source "$CONDA_SH"
-    conda activate "$CONDA_ENV_NAME"
-    local status=$?
-    set -u
+    source "$CONDA_SH" || status=$?
+    if [ "$status" -eq 0 ]; then
+        conda activate "$CONDA_ENV_NAME" || status=$?
+    fi
+
+    sanitized_pythonpath="$(sanitize_inherited_pythonpath "$inherited_pythonpath")"
+    if [ -n "$sanitized_pythonpath" ]; then
+        export PYTHONPATH="$sanitized_pythonpath"
+    else
+        unset PYTHONPATH
+    fi
+
+    if [ "$nounset_was_set" -eq 1 ]; then
+        set -u
+    fi
     return "$status"
 }
 
 activate_ros_env() {
     # ROS-generated setup scripts probe optional variables without `${var:-}`
     # and therefore cannot be sourced under this verifier's nounset mode.
-    set +u
-    activate_conda_env || {
+    local nounset_was_set=0
+    local status=0
+    if [[ $- == *u* ]]; then
+        nounset_was_set=1
+        set +u
+    fi
+
+    activate_conda_env || status=$?
+    if [ "$status" -eq 0 ]; then
+        export PYTHONPATH="/usr/lib/python3/dist-packages"
+        # shellcheck disable=SC1091
+        source "/opt/ros/${ROS_DISTRO}/setup.bash" || status=$?
+    fi
+    if [ "$status" -eq 0 ]; then
+        # shellcheck disable=SC1091
+        source "${ROS2_WS}/install/setup.bash" || status=$?
+    fi
+    if [ "$status" -eq 0 ]; then
+        export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+        export CARLA_ROOT
+        [ "$(command -v python)" = "${CONDA_ROOT}/envs/${CONDA_ENV_NAME}/bin/python" ] || status=$?
+    fi
+
+    if [ "$nounset_was_set" -eq 1 ]; then
         set -u
-        return 1
-    }
-    export PYTHONPATH="/usr/lib/python3/dist-packages:${PYTHONPATH:-}"
-    # shellcheck disable=SC1091
-    source "/opt/ros/${ROS_DISTRO}/setup.bash"
-    # shellcheck disable=SC1091
-    source "${ROS2_WS}/install/setup.bash"
-    set -u
-    export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-    export CARLA_ROOT
-    [ "$(command -v python)" = "${CONDA_ROOT}/envs/${CONDA_ENV_NAME}/bin/python" ]
+    fi
+    return "$status"
+}
+
+autodrive_python_is_isolated() {
+    export CONDA_ROOT CONDA_ENV_NAME
+    python - <<'PY'
+import os
+import pathlib
+import sys
+
+conda_root = pathlib.Path(os.environ["CONDA_ROOT"]).resolve()
+expected_prefix = (conda_root / "envs" / os.environ["CONDA_ENV_NAME"]).resolve()
+actual_prefix = pathlib.Path(sys.prefix).resolve()
+if actual_prefix != expected_prefix:
+    raise SystemExit(f"sys.prefix={actual_prefix}; expected={expected_prefix}")
+if sys.version_info[:2] != (3, 10):
+    raise SystemExit(f"Python {sys.version.split()[0]}; expected Python 3.10")
+
+base_sites = {
+    path.resolve()
+    for path in (conda_root / "lib").glob("python*/site-packages")
+}
+runtime_paths = {
+    pathlib.Path(path or os.getcwd()).resolve()
+    for path in sys.path
+}
+polluted = sorted(str(path) for path in base_sites & runtime_paths)
+if polluted:
+    raise SystemExit("base Conda site-packages leaked into sys.path: " + ", ".join(polluted))
+PY
 }
 
 cleanup_ros_demo_nodes() {
@@ -190,6 +277,8 @@ run_stage4_runtime_tests() {
 
     check_cmd "ros2 topic command is available" "ros2 topic --help"
     check_cmd "colcon is available" "colcon --help"
+    check_cmd "autodrive Python prefix and sys.path are isolated" \
+        "autodrive_python_is_isolated"
     check_cmd "import rclpy under ROS environment" "python -c 'import rclpy'"
     check_cmd "import carla under ROS environment" "python -c 'import carla'"
     check_cmd "carla_ros_bridge package prefix exists" \
@@ -263,7 +352,7 @@ if should_run 0; then
     check_file "data directory exists" "$BLOCKDATA_DIR"
     check_file "ROS2 workspace root exists" "$ROS2_WS"
     check_file "Conda profile exists" "$CONDA_SH"
-    check_cmd "conda command works" "source '$CONDA_SH' && conda --version"
+    check_cmd "conda command works" "source '$CONDA_SH' && PYTHONPATH= conda --version"
     check_file "pip mirror config exists" "$HOME/.pip/pip.conf"
     check_bashrc_marker "conda init in ~/.bashrc" "# >>> conda initialize >>>"
     if grep -q "mirrors.tuna.tsinghua.edu.cn/ubuntu" /etc/apt/sources.list 2>/dev/null; then
@@ -293,12 +382,12 @@ if should_run 2; then
     if [ -f "$CONDA_SH" ]; then
         # shellcheck disable=SC1090
         source "$CONDA_SH"
-        if conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
+        if PYTHONPATH= conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
             pass "conda env '$CONDA_ENV_NAME' exists"
         else
             fail "conda env '$CONDA_ENV_NAME' exists"
         fi
-        if conda activate "$CONDA_ENV_NAME" && python - <<'PY'
+        if activate_conda_env && autodrive_python_is_isolated && python - <<'PY'
 import cv2, mcap, numpy, pandas, pyarrow
 PY
         then
