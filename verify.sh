@@ -87,10 +87,14 @@ activate_conda_env() {
 }
 
 activate_ros_env() {
+    # ROS-generated setup scripts probe optional variables without `${var:-}`
+    # and therefore cannot be sourced under this verifier's nounset mode.
+    set +u
     # shellcheck disable=SC1091
     source "/opt/ros/${ROS_DISTRO}/setup.bash"
     # shellcheck disable=SC1091
     source "${ROS2_WS}/install/setup.bash"
+    set -u
     export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     export CARLA_ROOT
     activate_conda_env
@@ -295,13 +299,16 @@ fi
 
 if should_run 4; then
     echo "[Stage 4] ROS 2 + CARLA ROS bridge"
-    check_cmd "ros2 command works" "source /opt/ros/${ROS_DISTRO}/setup.bash && ros2 -h"
+    check_cmd "ros2 command works" \
+        "set +u; source /opt/ros/${ROS_DISTRO}/setup.bash; set -u; ros2 -h"
     check_cmd "active ROS distro is Humble" \
-        "source /opt/ros/humble/setup.bash && [ \"\${ROS_DISTRO}\" = humble ]"
+        "set +u; source /opt/ros/humble/setup.bash; set -u; [ \"\${ROS_DISTRO}\" = humble ]"
     check_file "ROS 2 distro setup" "/opt/ros/${ROS_DISTRO}/setup.bash"
     check_file "ROS 2 workspace install dir" "$ROS2_WS/install"
-    if source "/opt/ros/${ROS_DISTRO}/setup.bash" && \
+    if set +u && \
+       source "/opt/ros/${ROS_DISTRO}/setup.bash" && \
        source "$ROS2_WS/install/setup.bash" 2>/dev/null && \
+       set -u && \
        ros2 pkg list 2>/dev/null | grep -qw carla_ros_bridge; then
         pass "carla_ros_bridge package registered"
     else
