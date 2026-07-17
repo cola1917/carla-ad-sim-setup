@@ -38,6 +38,7 @@ bash stage2_python.sh
 bash stage3_carla.sh
 bash stage4_ros.sh
 bash stage5_scene.sh
+bash stage6_nurec_grpc.sh
 ```
 
 5. 新开终端或执行 `source ~/.bashrc`，使 conda / ROS 环境变量生效。
@@ -52,6 +53,7 @@ bash stage5_scene.sh
 | 3 | `stage3_carla.sh` | 解压 CARLA，安装 Python API |
 | 4 | `stage4_ros.sh` | ROS 2 Humble + CARLA ROS Bridge |
 | 5 | `stage5_scene.sh` | ScenarioRunner |
+| 6 | `stage6_nurec_grpc.sh` | NuRec gRPC 镜像、GPU 验证与 CARLA 兼容补丁 |
 
 不需要远程桌面时可跳过 Stage 1。
 
@@ -89,6 +91,28 @@ ENV_HOME=/data/sim-env bash stage3_carla.sh
 | `CARLA_ROS_BRIDGE_REF` | 固定提交 | ROS Bridge 的可复现版本 |
 | `SCENARIO_RUNNER_ROOT` | `$BLOCKDATA_DIR/scenario_runner` | ScenarioRunner 目录 |
 | `PIP_INDEX_URL` | 清华 pip 源 | pip 镜像 |
+| `NUREC_MAIN_MIRROR_IMAGE` | 空 | 可选的 `nre-ga` 国内私有镜像；必须匹配固定 digest |
+| `NUREC_TOOLS_MIRROR_IMAGE` | 空 | 可选的 `nre-tools-ga` 国内私有镜像；必须匹配固定 digest |
+
+### Stage 6：NuRec gRPC
+
+```bash
+bash stage0_container_runtime.sh
+bash stage6_nurec_grpc.sh
+bash verify.sh 6
+```
+
+正式回放使用 `nre-ga:26.04 serve-grpc`；独立的
+`carlasimulator/nvidia-nurec-grpc:0.2.0` 镜像无法加载 26.04 重建产物，已从
+setup 中移除。`nre-ga:26.04` 与
+`nre-tools-ga:26.04` 是需 NVIDIA NGC 授权的镜像，没有可验证的匿名公共国内镜像，
+因此默认保留官方 NGC；本机已经有匹配镜像时不会重复下载。需要在国内私有仓库缓存时，
+在 `env_config.local.sh` 配置 `NUREC_MAIN_MIRROR_IMAGE` 和
+`NUREC_TOOLS_MIRROR_IMAGE`，脚本只在摘要与官方固定值一致时才会接受并打官方标签。
+官方拉取需要登录时可配置 `NGC_API_KEY`。
+
+Stage 6 还会从同一 workspace 的 `ClosedLoopBench/tools` 应用已版本化、可重复执行的
+CARLA 0.9.16 NuRec 兼容补丁。仓库不在默认路径时设置 `CLOSED_LOOP_BENCH_ROOT`。
 
 ### Stage 4
 
@@ -131,6 +155,7 @@ bash verify.sh          # 全量检查（含 Stage 3/4 运行时项）
 bash verify.sh 0        # 仅 Stage 0
 bash verify.sh 3        # Stage 3（运行时需先 start_carla.sh）
 bash verify.sh 4        # Stage 4
+bash verify.sh 6        # Stage 6
 ```
 
 Stage 3 运行时测试需要 CARLA 服务已启动。若未启动，静态检查仍会执行，运行时项记为 WARN。

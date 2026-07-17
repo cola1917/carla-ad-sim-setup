@@ -8,3 +8,10 @@
 # ROS2_WS="$ENV_HOME/carla-ros2-ws"
 # CARLA_VERSION="0.9.16"
 # VNC_PASSWORD="your-password"
+
+# Optional private domestic registry mirrors for NVIDIA NGC images. Stage 6
+# accepts them only when their manifest digests match the pinned official ones.
+# NUREC_MAIN_MIRROR_IMAGE="registry.example.cn/nre/nre-ga:26.04"
+# NUREC_TOOLS_MIRROR_IMAGE="registry.example.cn/nre/nre-tools-ga:26.04"
+# NGC_API_KEY="your-ngc-api-key"
+# CLOSED_LOOP_BENCH_ROOT="$HOME/workspace/ClosedLoopBench"

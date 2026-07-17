@@ -5,6 +5,7 @@
 #   bash verify.sh 0        # only Stage 0 checks
 #   bash verify.sh 3        # Stage 3 static + CARLA runtime (server must be running)
 #   bash verify.sh 4        # Stage 4 static + ROS 2 DDS runtime
+#   bash verify.sh 6        # NuRec gRPC images + CARLA adapter
 #   bash verify.sh host     # rental host / Pod / GPU / Docker preflight
 set -euo pipefail
 
@@ -465,6 +466,27 @@ if should_run 5; then
     echo
 fi
 
+if should_run 6; then
+    echo "[Stage 6] NuRec gRPC images + CARLA adapter"
+    check_cmd "Docker daemon is reachable" "docker info"
+    check_cmd "NuRec runtime image digest is pinned" \
+        "docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}} {{.Id}}' '$NUREC_MAIN_IMAGE' | grep -Fq '$NUREC_MAIN_IMAGE_DIGEST'"
+    check_cmd "NuRec tools image digest is pinned" \
+        "docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}} {{.Id}}' '$NUREC_TOOLS_IMAGE' | grep -Fq '$NUREC_TOOLS_IMAGE_DIGEST'"
+    check_cmd "NuRec runtime has GPU access" \
+        "docker run --rm --gpus all --entrypoint nvidia-smi '$NUREC_MAIN_IMAGE' --query-gpu=name --format=csv,noheader"
+    check_file "CARLA NuRec example" "$CARLA_ROOT/PythonAPI/examples/nvidia/nurec/example_nurec_replay_save_images.py"
+    check_cmd "external OpenDRIVE support patch" \
+        "grep -qF 'NUREC_XODR_PATH' '$CARLA_ROOT/PythonAPI/examples/nvidia/nurec/nurec_integration.py'"
+    check_cmd "deterministic NuRec cleanup patch" \
+        "grep -qF '_shutdown_runtime' '$CARLA_ROOT/PythonAPI/examples/nvidia/nurec/nurec_integration.py'"
+    check_cmd "NuRec serve-grpc command support patch" \
+        "grep -qF 'NUREC_IMAGE_COMMAND' '$CARLA_ROOT/PythonAPI/examples/nvidia/nurec/nurec_render_service.py'"
+    check_cmd "kinematic overlap diagnostics patch" \
+        "grep -qF 'oriented_actor_bounding_boxes_sat_2d_plus_z' '$CARLA_ROOT/PythonAPI/examples/nvidia/nurec/example_nurec_replay_save_images.py'"
+    echo
+fi
+
 echo "=========================================="
 echo "Summary: ${PASS} passed, ${FAIL} failed, ${WARN} warnings"
 echo "=========================================="
@@ -475,6 +497,7 @@ if [ "$FAIL" -gt 0 ]; then
     echo "  bash verify.sh 0   # after stage0_miniconda.sh"
     echo "  bash verify.sh 3   # after stage3_carla.sh (+ bash start_carla.sh for runtime)"
     echo "  bash verify.sh 4   # after stage4_ros.sh"
+    echo "  bash verify.sh 6   # after stage6_nurec_grpc.sh"
     exit 1
 fi
 

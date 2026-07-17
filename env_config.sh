@@ -67,6 +67,21 @@ CARLA_ROS_BRIDGE_REF="${CARLA_ROS_BRIDGE_REF:-e9063d97ff5a724f76adbb1b852dc71da1
 SCENARIO_RUNNER_ROOT="${SCENARIO_RUNNER_ROOT:-$BLOCKDATA_DIR/scenario_runner}"
 SCENARIO_RUNNER_TAG="${SCENARIO_RUNNER_TAG:-v${CARLA_VERSION}}"
 
+# NuRec gRPC settings. Formal replay uses `nre-ga:26.04 serve-grpc`; the
+# standalone carlasimulator/nvidia-nurec-grpc:0.2.0 image cannot load 26.04
+# artifacts and was removed from setup. NVIDIA NGC NuRec images require NVIDIA
+# authorization, so their domestic mirrors are opt-in and must resolve to the
+# pinned digests.
+CLOSED_LOOP_BENCH_ROOT="${CLOSED_LOOP_BENCH_ROOT:-$HOME/workspace/ClosedLoopBench}"
+NUREC_MAIN_IMAGE="${NUREC_MAIN_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}"
+NUREC_MAIN_IMAGE_DIGEST="${NUREC_MAIN_IMAGE_DIGEST:-sha256:1c3a838440fce96258e055615b146fa8f75ad2a799e131aaa480755592317d1f}"
+NUREC_TOOLS_IMAGE="${NUREC_TOOLS_IMAGE:-nvcr.io/nvidia/nre/nre-tools-ga:26.04}"
+NUREC_TOOLS_IMAGE_DIGEST="${NUREC_TOOLS_IMAGE_DIGEST:-sha256:d9c19b67a86c7fca71c2c23250a953870e616c562325fb27131d004c7f8bef1c}"
+NUREC_MAIN_MIRROR_IMAGE="${NUREC_MAIN_MIRROR_IMAGE:-}"
+NUREC_TOOLS_MIRROR_IMAGE="${NUREC_TOOLS_MIRROR_IMAGE:-}"
+NUREC_APPLY_CARLA_PATCHES="${NUREC_APPLY_CARLA_PATCHES:-1}"
+NUREC_SHM_SIZE="${NUREC_SHM_SIZE:-64g}"
+
 # Optional machine-local overrides (not tracked by git).
 if [ -f "$ENV_BUILD_ROOT/env_config.local.sh" ]; then
     # shellcheck source=/dev/null
