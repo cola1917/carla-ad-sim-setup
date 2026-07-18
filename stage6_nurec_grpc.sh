@@ -85,6 +85,7 @@ apply_carla_patches() {
         "patch_carla_nurec_server_command.py:${nurec_root}/nurec_render_service.py"
         "patch_carla_nurec_camera_config.py:${example}"
         "patch_carla_nurec_overlap_diagnostics.py:${example}"
+        "patch_carla_nurec_actor_inventory.py:${example}"
     )
     [[ -x "$python_bin" ]] || { echo "[ERROR] Python not found: ${python_bin}" >&2; return 1; }
     [[ -d "$nurec_root" ]] || { echo "[ERROR] CARLA NuRec examples not found: ${nurec_root}" >&2; return 1; }
