@@ -80,6 +80,7 @@ apply_carla_patches() {
     local -a patch_specs=(
         "patch_carla_nurec_runtime.py:${nurec_root}/nurec_integration.py"
         "patch_carla_nurec_cleanup.py:${nurec_root}/nurec_integration.py"
+        "patch_carla_nurec_ego_warmup.py:${nurec_root}/nurec_integration.py"
         "patch_carla_nurec_scenario.py:${nurec_root}/scenario.py"
         "patch_carla_nurec_replay.py:${example}"
         "patch_carla_nurec_server_command.py:${nurec_root}/nurec_render_service.py"
